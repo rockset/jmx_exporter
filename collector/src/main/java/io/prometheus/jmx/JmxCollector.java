@@ -59,7 +59,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
       boolean lowercaseOutputLabelNames;
       List<ObjectName> whitelistObjectNames = new ArrayList<ObjectName>();
       List<ObjectName> blacklistObjectNames = new ArrayList<ObjectName>();
-      ArrayList<Rule> rules = new ArrayList<Rule>();
+      List<Rule> rules = new ArrayList<Rule>();
       long lastUpdate = 0L;
     }
 
@@ -317,6 +317,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
         String beanName = domain + angleBrackets(beanProperties.toString()) + angleBrackets(attrKeys.toString());
         // attrDescription tends not to be useful, so give the fully qualified name too.
         String help = attrDescription + " (" + beanName + attrName + ")";
+
         String attrNameSnakeCase = snakeCasePattern.matcher(attrName).replaceAll("$1_$2").toLowerCase();
 
         for (Rule rule : config.rules) {

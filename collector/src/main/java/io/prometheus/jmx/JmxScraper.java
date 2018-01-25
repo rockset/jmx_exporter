@@ -2,14 +2,7 @@ package io.prometheus.jmx;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -96,19 +89,27 @@ public class JmxScraper {
         }
         try {
             // Query MBean names, see #89 for reasons queryMBeans() is used instead of queryNames()
-            Set<ObjectInstance> mBeanInstances = new HashSet<ObjectInstance>();
+            Set<ObjectName> mBeanNames = new HashSet<ObjectName>();
             for (ObjectName name : whitelistObjectNames) {
-                mBeanInstances.addAll(beanConn.queryMBeans(name, null));
+                for (ObjectInstance instance : beanConn.queryMBeans(name, null)) {
+                    mBeanNames.add(instance.getObjectName());
+                }
             }
+
+            // Now that we have the whitelisted mBeans, remove any old ones from the cache:
+            jmxMBeanPropertyCache.onlyKeepMBeans(mBeanNames);
+
             for (ObjectName name : blacklistObjectNames) {
                 Set<ObjectInstance> queriedMBeans = beanConn.queryMBeans(name, null);
                 jmxMBeanPropertyCache.removeMBeans(queriedMBeans);
-                mBeanInstances.removeAll(queriedMBeans);
+                for (ObjectInstance instance : beanConn.queryMBeans(name, null)) {
+                    mBeanNames.remove(instance.getObjectName());
+                }
             }
-            for (ObjectInstance instance : mBeanInstances) {
+            for (ObjectName objectName : mBeanNames) {
                 long start = System.nanoTime();
-                scrapeBean(beanConn, instance.getObjectName());
-                logger.fine("TIME: " + (System.nanoTime() - start) + " ns for " + instance.getObjectName().toString());
+                scrapeBean(beanConn, objectName);
+                logger.fine("TIME: " + (System.nanoTime() - start) + " ns for " + objectName.toString());
             }
         } finally {
           if (jmxc != null) {

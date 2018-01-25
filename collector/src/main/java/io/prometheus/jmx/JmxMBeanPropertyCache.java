@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 
 /**
  * This object stores a mapping of mBean objectNames to mBean key property lists. The main purpose of it is to reduce
- * the frequency with which we invoke PROPERTY_PATTERN when discovering mBeans. 
+ * the frequency with which we invoke PROPERTY_PATTERN when discovering mBeans.
  */
 public class JmxMBeanPropertyCache {
     private static final Pattern PROPERTY_PATTERN = Pattern.compile(
@@ -58,6 +58,14 @@ public class JmxMBeanPropertyCache {
         }
         keyPropertiesPerBean.put(mbeanName, keyProperties);
         return keyProperties;
+    }
+
+    public void onlyKeepMBeans(Set<ObjectName> latestBeans) {
+        for (ObjectName prevName : keyPropertiesPerBean.keySet()) {
+            if (!latestBeans.contains(prevName)) {
+                keyPropertiesPerBean.remove(prevName);
+            }
+        }
     }
 
     public void removeMBeans(Set<ObjectInstance> mBeans) {
