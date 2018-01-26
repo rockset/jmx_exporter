@@ -31,6 +31,7 @@ public class JmxMBeanPropertyCache {
                     "|" + // Or
                     "[^,=:\"]*" + // Unquoted - can be empty, anything but comma, equals, colon, or quote
                     ")");
+
     // Implement a version of ObjectName.getKeyPropertyList that returns the
     // properties in the ordered they were added (the ObjectName stores them
     // in the order they were added).
@@ -38,6 +39,10 @@ public class JmxMBeanPropertyCache {
 
     public JmxMBeanPropertyCache() {
         this.keyPropertiesPerBean = new ConcurrentHashMap<ObjectName, LinkedHashMap<String, String>>();
+    }
+
+    Map<ObjectName, LinkedHashMap<String, String>> getKeyPropertiesPerBean() {
+        return keyPropertiesPerBean;
     }
 
     public LinkedHashMap<String, String> getKeyPropertyList(ObjectName mbeanName) {
@@ -68,9 +73,5 @@ public class JmxMBeanPropertyCache {
         }
     }
 
-    public void removeMBeans(Set<ObjectInstance> mBeans) {
-        for (ObjectInstance mBean : mBeans) {
-            keyPropertiesPerBean.remove(mBean.getObjectName());
-        }
-    }
+
 }

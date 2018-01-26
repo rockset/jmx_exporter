@@ -96,16 +96,15 @@ public class JmxScraper {
                 }
             }
 
-            // Now that we have the whitelisted mBeans, remove any old ones from the cache:
-            jmxMBeanPropertyCache.onlyKeepMBeans(mBeanNames);
-
             for (ObjectName name : blacklistObjectNames) {
-                Set<ObjectInstance> queriedMBeans = beanConn.queryMBeans(name, null);
-                jmxMBeanPropertyCache.removeMBeans(queriedMBeans);
                 for (ObjectInstance instance : beanConn.queryMBeans(name, null)) {
                     mBeanNames.remove(instance.getObjectName());
                 }
             }
+
+            // Now that we have *only* the whitelisted mBeans, remove any old ones from the cache:
+            jmxMBeanPropertyCache.onlyKeepMBeans(mBeanNames);
+
             for (ObjectName objectName : mBeanNames) {
                 long start = System.nanoTime();
                 scrapeBean(beanConn, objectName);

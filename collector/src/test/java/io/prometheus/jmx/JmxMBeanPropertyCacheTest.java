@@ -1,5 +1,6 @@
 package io.prometheus.jmx;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.management.ObjectInstance;
@@ -8,6 +9,7 @@ import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class JmxMBeanPropertyCacheTest {
 
@@ -88,14 +90,41 @@ public class JmxMBeanPropertyCacheTest {
     }
 
     @Test
-    public void testGetAfterDelete() throws Throwable {
+    public void testGetAfterDeleteOneObject() throws Throwable {
         JmxMBeanPropertyCache testCache = new JmxMBeanPropertyCache();
         ObjectName testObjectName = new ObjectName("com.organisation:name=value");
         LinkedHashMap<String, String> parameterListFirst = testCache.getKeyPropertyList(testObjectName);
         assertNotNull(parameterListFirst);
-        testCache.removeMBeans(Collections.singleton(new ObjectInstance("com.organisation:name=value", "")));
+        testCache.onlyKeepMBeans(Collections.<ObjectName>emptySet());
+        assertEquals(Collections.<ObjectName, LinkedHashMap<String,String>>emptyMap(), testCache.getKeyPropertiesPerBean());
         LinkedHashMap<String, String> parameterListSecond = testCache.getKeyPropertyList(testObjectName);
         assertNotNull(parameterListSecond);
+    }
+
+    @Test
+    public void testRemoveOneOfMultipleObjects() throws Throwable {
+        JmxMBeanPropertyCache testCache = new JmxMBeanPropertyCache();
+        ObjectName mBean1 = new ObjectName("com.organisation:name=value1");
+        ObjectName mBean2 = new ObjectName("com.organisation:name=value2");
+        ObjectName mBean3 = new ObjectName("com.organisation:name=value3");
+        testCache.getKeyPropertyList(mBean1);
+        testCache.getKeyPropertyList(mBean2);
+        testCache.getKeyPropertyList(mBean3);
+        Set<ObjectName> keepSet = new HashSet<ObjectName>();
+        keepSet.add(mBean2);
+        keepSet.add(mBean3);
+        testCache.onlyKeepMBeans(keepSet);
+        assertEquals(2, testCache.getKeyPropertiesPerBean().size());
+        assertTrue(testCache.getKeyPropertiesPerBean().keySet().contains(mBean2));
+        assertTrue(testCache.getKeyPropertiesPerBean().keySet().contains(mBean3));
+    }
+
+    @Test
+    public void testRemoveEmptyIdempotent() throws Throwable {
+        JmxMBeanPropertyCache testCache = new JmxMBeanPropertyCache();
+        testCache.onlyKeepMBeans(Collections.<ObjectName>emptySet());
+        testCache.onlyKeepMBeans(Collections.<ObjectName>emptySet());
+        assertEquals(testCache.getKeyPropertiesPerBean().size(), 0);
     }
 
     private void assertSameElementsAndOrder(LinkedHashMap<?, ?> actual, Object... expected) {
