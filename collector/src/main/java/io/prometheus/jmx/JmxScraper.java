@@ -25,7 +25,7 @@ import javax.naming.Context;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
 
 
-public class JmxScraper {
+class JmxScraper {
     private static final Logger logger = Logger.getLogger(JmxScraper.class.getName());
 
 

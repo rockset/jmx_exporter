@@ -1,6 +1,5 @@
 package io.prometheus.jmx;
 
-import javax.management.ObjectInstance;
 import javax.management.ObjectName;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,7 +12,7 @@ import java.util.regex.Pattern;
  * This object stores a mapping of mBean objectNames to mBean key property lists. The main purpose of it is to reduce
  * the frequency with which we invoke PROPERTY_PATTERN when discovering mBeans.
  */
-public class JmxMBeanPropertyCache {
+class JmxMBeanPropertyCache {
     private static final Pattern PROPERTY_PATTERN = Pattern.compile(
             "([^,=:\\*\\?]+)" + // Name - non-empty, anything but comma, equals, colon, star, or question mark
                     "=" +  // Equals
@@ -46,22 +45,21 @@ public class JmxMBeanPropertyCache {
     }
 
     public LinkedHashMap<String, String> getKeyPropertyList(ObjectName mbeanName) {
-        if (keyPropertiesPerBean.containsKey(mbeanName)) {
-            return keyPropertiesPerBean.get(mbeanName);
-        }
-
-        LinkedHashMap<String, String> keyProperties = new LinkedHashMap<String, String>();
-        String properties = mbeanName.getKeyPropertyListString();
-        Matcher match = PROPERTY_PATTERN.matcher(properties);
-        while (match.lookingAt()) {
-            keyProperties.put(match.group(1), match.group(2));
-            properties = properties.substring(match.end());
-            if (properties.startsWith(",")) {
-                properties = properties.substring(1);
+        LinkedHashMap<String, String> keyProperties = keyPropertiesPerBean.get(mbeanName);
+        if (keyProperties == null) {
+            keyProperties = new LinkedHashMap<String, String>();
+            String properties = mbeanName.getKeyPropertyListString();
+            Matcher match = PROPERTY_PATTERN.matcher(properties);
+            while (match.lookingAt()) {
+                keyProperties.put(match.group(1), match.group(2));
+                properties = properties.substring(match.end());
+                if (properties.startsWith(",")) {
+                    properties = properties.substring(1);
+                }
+                match.reset(properties);
             }
-            match.reset(properties);
+            keyPropertiesPerBean.put(mbeanName, keyProperties);
         }
-        keyPropertiesPerBean.put(mbeanName, keyProperties);
         return keyProperties;
     }
 
