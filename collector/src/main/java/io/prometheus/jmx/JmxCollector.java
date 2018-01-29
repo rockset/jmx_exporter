@@ -67,23 +67,16 @@ public class JmxCollector extends Collector implements Collector.Describable {
     private File configFile;
     private long createTimeNanoSecs = System.nanoTime();
 
-    private final JmxMBeanPropertyCache jmxMBeanPropertyCache;
-    private final RulePatternCache rulePatternCache;
-
-    private JmxCollector() {
-        jmxMBeanPropertyCache = new JmxMBeanPropertyCache();
-        rulePatternCache = new RulePatternCache();
-    }
+    private final JmxMBeanPropertyCache jmxMBeanPropertyCache = new JmxMBeanPropertyCache();
+    private final RulePatternCache rulePatternCache = new RulePatternCache();
 
     public JmxCollector(File in) throws IOException, MalformedObjectNameException {
-        this();
         configFile = in;
         config = loadConfig((Map<String, Object>)new Yaml().load(new FileReader(in)));
         config.lastUpdate = configFile.lastModified();
     }
 
     public JmxCollector(String yamlConfig) throws MalformedObjectNameException {
-        this();
         config = loadConfig((Map<String, Object>)new Yaml().load(yamlConfig));
     }
 
