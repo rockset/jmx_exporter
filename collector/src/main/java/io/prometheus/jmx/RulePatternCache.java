@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class RulePatternCache {
+class RulePatternCache {
     /**
      * We store computed patterns and their results in the following map
      */
