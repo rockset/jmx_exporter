@@ -1,12 +1,7 @@
 package io.prometheus.jmx;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import javax.management.Attribute;
+import javax.management.AttributeList;
 import javax.management.JMException;
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;
@@ -23,6 +18,18 @@ import javax.management.remote.JMXServiceURL;
 import javax.management.remote.rmi.RMIConnectorServer;
 import javax.naming.Context;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 class JmxScraper {
@@ -130,21 +137,24 @@ class JmxScraper {
         }
         MBeanAttributeInfo[] attrInfos = info.getAttributes();
 
+        Map<String, MBeanAttributeInfo> name2AttrInfo = new LinkedHashMap<String, MBeanAttributeInfo>();
         for (int idx = 0; idx < attrInfos.length; ++idx) {
             MBeanAttributeInfo attr = attrInfos[idx];
             if (!attr.isReadable()) {
                 logScrape(mbeanName, attr, "not readable");
                 continue;
             }
-
-            Object value;
-            try {
-                value = beanConn.getAttribute(mbeanName, attr.getName());
-            } catch(Exception e) {
-                logScrape(mbeanName, attr, "Fail: " + e);
-                continue;
-            }
-
+            name2AttrInfo.put(attr.getName(), attr);
+        }
+        final AttributeList attributes;
+        try {
+            attributes = beanConn.getAttributes(mbeanName, name2AttrInfo.keySet().toArray(new String[0]));
+        } catch (Exception e) {
+            logScrape(mbeanName, name2AttrInfo.keySet(), "Fail: " + e);
+            return;
+        }
+        for (Attribute attribute : attributes.asList()) {
+            MBeanAttributeInfo attr = name2AttrInfo.get(attribute.getName());
             logScrape(mbeanName, attr, "process");
             processBeanValue(
                     mbeanName.getDomain(),
@@ -153,8 +163,8 @@ class JmxScraper {
                     attr.getName(),
                     attr.getType(),
                     attr.getDescription(),
-                    value
-                    );
+                    attribute.getValue()
+            );
         }
     }
 
@@ -261,6 +271,9 @@ class JmxScraper {
     /**
      * For debugging.
      */
+    private static void logScrape(ObjectName mbeanName, Set<String> names, String msg) {
+        logScrape(mbeanName + "_" + names, msg);
+    }
     private static void logScrape(ObjectName mbeanName, MBeanAttributeInfo attr, String msg) {
         logScrape(mbeanName + "'_'" + attr.getName(), msg);
     }
