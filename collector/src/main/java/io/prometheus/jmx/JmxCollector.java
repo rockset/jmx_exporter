@@ -248,14 +248,20 @@ public class JmxCollector extends Collector implements Collector.Describable {
         return null;
       }
       boolean prevCharIsUnderscore = false;
-      StringBuilder safeNameBuilder = new StringBuilder();
+      StringBuilder safeNameBuilder = new StringBuilder(name.length());
+      if (!name.isEmpty() && Character.isDigit(name.charAt(0))) {
+        // prevent a numeric prefix.
+        safeNameBuilder.append("_");
+      }
       for (char nameChar : name.toCharArray()) {
         boolean isUnsafeChar = !(Character.isLetterOrDigit(nameChar) || nameChar == ':' || nameChar == '_');
-        if ((isUnsafeChar || nameChar == '_') && !prevCharIsUnderscore) {
-          safeNameBuilder.append("_");
-          prevCharIsUnderscore = true;
-        } else if (nameChar == '_' || isUnsafeChar) {
-          continue;
+        if ((isUnsafeChar || nameChar == '_')) {
+          if (prevCharIsUnderscore) {
+            continue;
+          } else {
+            safeNameBuilder.append("_");
+            prevCharIsUnderscore = true;
+          }
         } else {
           safeNameBuilder.append(nameChar);
           prevCharIsUnderscore = false;
@@ -336,18 +342,6 @@ public class JmxCollector extends Collector implements Collector.Describable {
           type, help);
       }
 
-      String toSnakeCase(String attrName) {
-        StringBuilder resultBuilder = new StringBuilder(attrName.substring(0,1).toLowerCase());
-        for (char attrChar : attrName.substring(1).toCharArray()) {
-          if (Character.isUpperCase(attrChar)) {
-            resultBuilder.append("_").append(Character.toLowerCase(attrChar));
-          } else {
-            resultBuilder.append(attrChar);
-          }
-        }
-        return resultBuilder.toString();
-      }
-
       public void recordBean(
           String domain,
           LinkedHashMap<String, String> beanProperties,
@@ -376,6 +370,17 @@ public class JmxCollector extends Collector implements Collector.Describable {
           }
 
           Number value;
+          if (rule.value != null && !rule.value.isEmpty()) {
+            String val = matcher.replaceAll(rule.value);
+
+            try {
+              beanValue = Double.valueOf(val);
+            } catch (NumberFormatException e) {
+              LOGGER.fine("Unable to parse configured value '" + val + "' to number for bean: " + beanName + attrName + ": " + beanValue);
+              return;
+            }
+          }
+
           if (beanValue instanceof Number) {
             value = ((Number)beanValue).doubleValue() * rule.valueFactor;
           } else if (beanValue instanceof Boolean) {
