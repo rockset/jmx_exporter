@@ -68,6 +68,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
     private long createTimeNanoSecs = System.nanoTime();
 
     private final JmxMBeanPropertyCache jmxMBeanPropertyCache = new JmxMBeanPropertyCache();
+    private final RulePatternCache rulePatternCache = new RulePatternCache();
 
     public JmxCollector(File in) throws IOException, MalformedObjectNameException {
         configFile = in;
@@ -127,7 +128,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
         if (yamlConfig.containsKey("username")) {
           cfg.username = (String)yamlConfig.get("username");
         }
-        
+
         if (yamlConfig.containsKey("password")) {
           cfg.password = (String)yamlConfig.get("password");
         }
@@ -135,7 +136,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
         if (yamlConfig.containsKey("ssl")) {
           cfg.ssl = (Boolean)yamlConfig.get("ssl");
         }
-        
+
         if (yamlConfig.containsKey("lowercaseOutputName")) {
           cfg.lowercaseOutputName = (Boolean)yamlConfig.get("lowercaseOutputName");
         }
@@ -247,20 +248,14 @@ public class JmxCollector extends Collector implements Collector.Describable {
         return null;
       }
       boolean prevCharIsUnderscore = false;
-      StringBuilder safeNameBuilder = new StringBuilder(name.length());
-      if (!name.isEmpty() && Character.isDigit(name.charAt(0))) {
-        // prevent a numeric prefix.
-        safeNameBuilder.append("_");
-      }
+      StringBuilder safeNameBuilder = new StringBuilder();
       for (char nameChar : name.toCharArray()) {
         boolean isUnsafeChar = !(Character.isLetterOrDigit(nameChar) || nameChar == ':' || nameChar == '_');
-        if ((isUnsafeChar || nameChar == '_')) {
-          if (prevCharIsUnderscore) {
-            continue;
-          } else {
-            safeNameBuilder.append("_");
-            prevCharIsUnderscore = true;
-          }
+        if ((isUnsafeChar || nameChar == '_') && !prevCharIsUnderscore) {
+          safeNameBuilder.append("_");
+          prevCharIsUnderscore = true;
+        } else if (nameChar == '_' || isUnsafeChar) {
+          continue;
         } else {
           safeNameBuilder.append(nameChar);
           prevCharIsUnderscore = false;
@@ -341,6 +336,18 @@ public class JmxCollector extends Collector implements Collector.Describable {
           type, help);
       }
 
+      String toSnakeCase(String attrName) {
+        StringBuilder resultBuilder = new StringBuilder(attrName.substring(0,1).toLowerCase());
+        for (char attrChar : attrName.substring(1).toCharArray()) {
+          if (Character.isUpperCase(attrChar)) {
+            resultBuilder.append("_").append(Character.toLowerCase(attrChar));
+          } else {
+            resultBuilder.append(attrChar);
+          }
+        }
+        return resultBuilder.toString();
+      }
+
       public void recordBean(
           String domain,
           LinkedHashMap<String, String> beanProperties,
@@ -353,29 +360,22 @@ public class JmxCollector extends Collector implements Collector.Describable {
         String beanName = domain + angleBrackets(beanProperties.toString()) + angleBrackets(attrKeys.toString());
         // attrDescription tends not to be useful, so give the fully qualified name too.
         String help = attrDescription + " (" + beanName + attrName + ")";
+
+        // Evict patterns no longer listed in the rules
+        // TODO
         String attrNameSnakeCase = toSnakeAndLowerCase(attrName);
 
         for (Rule rule : config.rules) {
           Matcher matcher = null;
           String matchName = beanName + (rule.attrNameSnakeCase ? attrNameSnakeCase : attrName);
           if (rule.pattern != null) {
-            matcher = rule.pattern.matcher(matchName + ": " + beanValue);
-            if (!matcher.matches()) {
-              continue;
+            if (!rulePatternCache.checkAndStoreMatchName(rule.pattern, matchName + ": ")) {
+                continue;
             }
+            matcher = rulePatternCache.getMatcher(rule.pattern, matchName + ": ");
           }
 
           Number value;
-          if (rule.value != null && !rule.value.isEmpty()) {
-            String val = matcher.replaceAll(rule.value);
-
-            try {
-              beanValue = Double.valueOf(val);
-            } catch (NumberFormatException e) {
-              LOGGER.fine("Unable to parse configured value '" + val + "' to number for bean: " + beanName + attrName + ": " + beanValue);
-              return;
-            }
-          }
           if (beanValue instanceof Number) {
             value = ((Number)beanValue).doubleValue() * rule.valueFactor;
           } else if (beanValue instanceof Boolean) {
