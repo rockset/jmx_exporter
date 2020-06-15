@@ -15,21 +15,16 @@ class RulePatternCache {
         patternToMatches = new ConcurrentHashMap<PatternMatch, RegexResult>();
     }
 
-    // Return if pattern matches matchName. If nextCache is not null, also
-    // place the cache entry in nextCache as well as this cache.
-    public boolean checkAndStoreMatchName(Pattern pattern, String matchName, RulePatternCache nextCache) {
+    public boolean checkAndStoreMatchName(Pattern pattern, String matchName) {
         PatternMatch patternMatch = new PatternMatch(pattern, matchName);
-        RegexResult regexResult = patternToMatches.get(patternMatch);
-        if (regexResult == null) {
-            Matcher matcher = pattern.matcher(matchName);
-            boolean result = matcher.matches();
-            regexResult = new RegexResult(matcher, result);
-            patternToMatches.put(patternMatch, regexResult);
+        if (patternToMatches.containsKey(patternMatch)) {
+            return patternToMatches.get(patternMatch).getResult();
         }
-        if (nextCache != null) {
-            nextCache.patternToMatches.put(patternMatch, regexResult);
-        }
-        return regexResult.getResult();
+
+        Matcher matcher = pattern.matcher(matchName + ": ");
+        boolean result = matcher.matches();
+        patternToMatches.put(patternMatch, new RegexResult(matcher, result));
+        return result;
     }
 
     public Matcher getMatcher(Pattern pattern, String match) {
