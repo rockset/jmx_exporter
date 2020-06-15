@@ -355,8 +355,11 @@ public class JmxCollector extends Collector implements Collector.Describable {
         // attrDescription tends not to be useful, so give the fully qualified name too.
         String help = attrDescription + " (" + beanName + attrName + ")";
 
-        // Evict patterns no longer listed in the rules
-        // TODO
+        // Eventually evict patterns no longer listed in the rules
+        if (rulePatternCache.size() > config.rules.size() * 3) {
+          rulePatternCache.clear();
+        }
+
         String attrNameSnakeCase = toSnakeAndLowerCase(attrName);
 
         for (Rule rule : config.rules) {

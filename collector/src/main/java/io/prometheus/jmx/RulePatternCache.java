@@ -31,10 +31,18 @@ class RulePatternCache {
         return patternToMatches.get(new PatternMatch(pattern, match)).getMatcher();
     }
 
+    public int size() {
+        return patternToMatches.size();
+    }
+
+    public void clear() {
+        patternToMatches.clear();
+    }
+
     /**
      * This is the key of the cache
      */
-    private class PatternMatch {
+    private static class PatternMatch {
         private final Pattern pattern;
         private final String match;
 
@@ -61,7 +69,7 @@ class RulePatternCache {
     /**
      * This is the value of the cache
      */
-    private class RegexResult {
+    private static class RegexResult {
         private final Matcher matcher;
         private final Boolean result;
 
