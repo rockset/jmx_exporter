@@ -68,7 +68,7 @@ public class JmxCollector extends Collector implements Collector.Describable {
     private long createTimeNanoSecs = System.nanoTime();
 
     private final JmxMBeanPropertyCache jmxMBeanPropertyCache = new JmxMBeanPropertyCache();
-    private final RulePatternCache rulePatternCache = new RulePatternCache();
+    private RulePatternCache rulePatternCache = new RulePatternCache();
 
     public JmxCollector(File in) throws IOException, MalformedObjectNameException {
         configFile = in;
@@ -355,15 +355,19 @@ public class JmxCollector extends Collector implements Collector.Describable {
         // attrDescription tends not to be useful, so give the fully qualified name too.
         String help = attrDescription + " (" + beanName + attrName + ")";
 
-        // Evict patterns no longer listed in the rules
-        // TODO
         String attrNameSnakeCase = toSnakeAndLowerCase(attrName);
+
+        // Transfer the rule patterns which are still used to the new cache, and
+        // replace the old cache when we're done processing the rules. This
+        // ensures patterns no longer in the rules are evicted, avoiding a
+        // memory leak.
+        RulePatternCache newRulePatternCache = new RulePatternCache();
 
         for (Rule rule : config.rules) {
           Matcher matcher = null;
           String matchName = beanName + (rule.attrNameSnakeCase ? attrNameSnakeCase : attrName);
           if (rule.pattern != null) {
-            if (!rulePatternCache.checkAndStoreMatchName(rule.pattern, matchName + ": ")) {
+            if (!rulePatternCache.checkAndStoreMatchName(rule.pattern, matchName + ": ", newRulePatternCache)) {
                 continue;
             }
             matcher = rulePatternCache.getMatcher(rule.pattern, matchName + ": ");
@@ -439,6 +443,8 @@ public class JmxCollector extends Collector implements Collector.Describable {
           addSample(new MetricFamilySamples.Sample(name, labelNames, labelValues, value.doubleValue()), rule.type, help);
           return;
         }
+
+        rulePatternCache = newRulePatternCache;
       }
 
     }
